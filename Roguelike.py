@@ -165,6 +165,7 @@ def main():
         def __init__(self, image, location, move_speed):
             self.location = location
             self.image = image
+            self.death_count = 0
             self.move_speed = move_speed
             self.max_health = 10
             self.health = 10
@@ -240,11 +241,12 @@ def main():
             if self.animation_timer > 14:
                 self.animation_timer = 0          
 
-        def shoot_projectile(self, speed_x, speed_y):
+        def shoot_projectile(self, speed_x, speed_y, proj_img_angle):
             projectile_rect = pygame.Rect(self.location[0] - self.weapon_location_adjust[0], self.location[1] + self.weapon_location_adjust[1], self.projectile.get_width(), self.projectile.get_height())
             pos_x = projectile_rect.x
             pos_y = projectile_rect.y
-            self.projectile_list.append([self.projectile, projectile_rect, speed_x, speed_y, pos_x, pos_y])
+            rotated_image = pygame.transform.rotate(self.projectile, proj_img_angle) # rotate the projectile image towards location being shot
+            self.projectile_list.append([rotated_image, projectile_rect, speed_x, speed_y, pos_x, pos_y])
 
         def projectile_wall_collision(self):
 #           projectile[0] = image, projectile[1] = rect, [2] = speed_x, [3] = speed_y
@@ -371,6 +373,8 @@ def main():
 
     chain_lightning = False
     lightning_timer = 0
+
+    restart = False
 
     dt = 0
     prev_time = time.time()
@@ -579,11 +583,12 @@ def main():
             distance_x = mouse_x - player.location[0]
             distance_y = mouse_y - player.location[1] - player.weapon_location_adjust[1] # adjust the location based on where the weapon is on the player
             angle = math.atan2(distance_y, distance_x)
+            proj_img_angle = 270-math.atan2(distance_y, distance_x)*180/math.pi
             speed_x = player.projectile_speed * math.cos(angle)
             speed_y = player.projectile_speed * math.sin(angle)
             player.attack_cooldown += 1
             if player.attack_cooldown == player.attack_speed:
-                player.shoot_projectile(speed_x, speed_y)
+                player.shoot_projectile(speed_x, speed_y, proj_img_angle)
                 player.attack_cooldown = 0
 
 
@@ -621,7 +626,8 @@ def main():
                 player.health -= enemy.attack_damage * dt
                 print(player.health)
                 if player.health <= 0:
-                    main()
+                    player.death_count += 1
+                    restart = True # triggers restart of game on death
 
 
 #########################################
@@ -686,9 +692,19 @@ def main():
                 enemy_list.remove(enemy)
 
 
+#       start from beginning, but with all skills and stats gained so far
+        if restart == True:
+            if player.death_count > 3: # if player dies more than 3 times, start over without skills and stats gained
+                main()
+            restart = False
+            new_map = True # trigger map change
+            map_level = 0 # set map level to 0, will increase to 1 on map change
+            enemy_list = [] # reset enemy list
+            player.health = player.max_health # reset player health
+            
+
         pygame.display.update() # update display
         clock.tick(60) # fps
-    main()
 
 if __name__ == '__main__':
     main()
